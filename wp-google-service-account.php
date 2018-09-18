@@ -42,12 +42,17 @@ if ( ! class_exists( 'WPGoogleServiceAccount' ) ) {
 		protected $service_account_key;
 		
 		/**
-		 * API Key.
+		 * Auth Scope.
 		 *
 		 * @var string
 		 */
 		protected $scope;
 		
+		/**
+		 * The GCP Service token.
+		 * 
+		 * @var array
+		 */
 		protected $gcp_service_token;
 
 		/**
@@ -68,8 +73,9 @@ if ( ! class_exists( 'WPGoogleServiceAccount' ) ) {
 			$this->scope = $scope;
 		} 
 		
-		public function get_token(){	
-			if ( ! isset( $this->gcp_service_token ) || ( false === ( $this->gcp_service_token = get_transient( 'gcp_service_token' ) ) ) ||  $this->gcp_service_token['expiration'] < time()  ) {
+		public function get_token(){
+			// Retrieve and return cached token or auth a new one.
+			if ( ( false === ( $this->gcp_service_token = get_transient( 'gcp_service_token' ) ) ) ||  $this->gcp_service_token['expiration'] < time()  ) {
 				$this->gcp_service_token['access_token'] = $this->authenticate();
 				$this->gcp_service_token['expiration'] = $this->expiration;
 				set_transient( 'gcp_service_token', $this->gcp_service_token, HOUR_IN_SECONDS );
@@ -78,6 +84,11 @@ if ( ! class_exists( 'WPGoogleServiceAccount' ) ) {
 			return $this->gcp_service_token['access_token'];
 		}
     
+		/**
+		 * Build JWT assertion used for service account auth.
+		 * 
+		 * @return string A Base64 URL encoded string used to auth account.
+		 */
     protected function build_assertion( ){
 			
       //{Base64url encoded JSON header}
@@ -110,6 +121,13 @@ if ( ! class_exists( 'WPGoogleServiceAccount' ) ) {
       return $jwtHeader.".".$jwtClaim.".".$jwtSign;
     }
     
+		/**
+		 * Encode base64 URL encode data.
+		 *  
+		 * @param  array   $data        Data to be encoded.
+		 * @param  boolean $json_encode Whether to encode data to JSON as well.
+		 * @return string               Base64 url encoded string.
+		 */
     protected function encode( $data, bool $json_encode = false ) { 
       $data = ( $json_encode ) ? json_encode( $data ) : $data;
       return rtrim( strtr( base64_encode( $data ), '+/', '-_'), '='); 
